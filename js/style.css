@@ -1,0 +1,21 @@
+.chartDiv {
+    border: 1px solid black;
+    width: 80%;
+    float: left;
+}
+
+#patientSelectDiv {
+    width:60px;
+    height:60px;
+    border: 1px solid black;
+    left:80%
+}
+
+.line > path {
+    fill-opacity: 0;
+}
+
+path {
+    fill-opacity: .7;
+    stroke-width: 2px;
+}
