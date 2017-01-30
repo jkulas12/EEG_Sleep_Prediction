@@ -15,6 +15,8 @@ var area;
 var EEG = {1:[], 2:[], 3:[], 4:[], 5:[], 6:[]};
 var EEGList = [];
 
+
+
 var EEGLine;
 var confidence_data;
 
