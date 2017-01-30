@@ -17,5 +17,14 @@
 
 path {
     fill-opacity: .7;
-    stroke-width: 2px;
+    stroke-width: 1px;
+}
+
+.shade_rect {
+    fill-opacity: .2;
+}
+
+.infoDiv {
+    border: 1px solid black;
+    float:right;
 }
