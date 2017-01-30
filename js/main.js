@@ -4,6 +4,9 @@
 
 var pred_labels;
 var true_labels;
+
+var raw_pred_labels;
+var raw_true_labels;
 var valueline;
 var EEGY;
 var EEGX;
@@ -27,7 +30,7 @@ var EEG_Domain;
 
 var margin = {top: 10, right: 20, bottom:10, left: 10},
     width = $(window).width() * .8 - margin.left - margin.right,
-    chartHeight =  200 - margin.top - margin.bottom;
+    chartHeight =  180 - margin.top - margin.bottom;
 
 var spect_data;
 var spect_colors = ["#a50026","#d73027","#f46d43","#fdae61","#fee08b","#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"];
@@ -41,15 +44,17 @@ $(window).on("load", function() {
     var h = $(window).height();
     var w = $(window).width();
     gen_scales();
-    $('.chartDiv').height(200).width(.8 * w);
+    $('.chartDiv').height(180).width(.8 * w);
 
     d3.csv('data/1_PredLabels_1_23.csv', function(data) {
         var time = 0;
         pred_labels = [];
+        raw_pred_labels = [];
         for (var i = 0; i < data.length - 1; i++) {
             data[i]['Time'] = time;
-            data[i]['Label'] = +data[i]['Label']
+            data[i]['Label'] = +data[i]['Label'];
             pred_labels.push(data[i]);
+            raw_pred_labels.push(data[i]);
             if (data[i] !== data[i + 1]) {
                 pred_labels.push({
                     'Label' : +data[i]['Label'],
@@ -58,6 +63,8 @@ $(window).on("load", function() {
             }
             time += 30
         }
+        console.log('raw_pred_labels');
+        console.log(raw_pred_labels);
         data[data.length - 1]['Time'] = time;
         data[data.length - 1]['Label'] = +data[data.length - 1]['Label'];
         pred_labels.push(data[data.length - 1]);
@@ -66,10 +73,12 @@ $(window).on("load", function() {
         d3.csv('data/1_200_sleepStates.csv', function(data) {
             var time = 0;
             true_labels = [];
+            raw_true_labels = [];
             for (var i = 0; i < data.length - 1; i++) {
                 data[i]['Time'] = time;
                 data[i]['Label'] = +data[i]['Label']
                 true_labels.push(data[i]);
+                raw_true_labels.push(data[i]);
                 if (isNaN(data[i]['Label'])) {data[i]['Label'] = -1}
                 if (data[i] !== data[i + 1]) {
                     true_labels.push({
@@ -79,6 +88,8 @@ $(window).on("load", function() {
                 }
                 time += 30
             }
+            console.log('raw_true_labels');
+            console.log(raw_true_labels);
             data[data.length - 1]['Time'] = time;
             data[data.length - 1]['Label'] = +data[data.length - 1]['Label']
             true_labels.push(data[data.length - 1]);
@@ -132,8 +143,10 @@ function gen_scales() {
         .defined(function(d) {return d.Label !== -1});
 
     xAxis = d3.axisBottom(stairXScale)
-        .tickValues([0, 5000, 10000, 15000, 20000])
-        .tickFormat(d3.format(".0f"));
+        .tickValues([0, 7200, 14400, 21600])
+        .tickFormat(function(d) {
+            return d / 3600;
+        });
 
     yAxis = d3.axisLeft(stairYScale)
         .tickValues([1,2,3,4,5])
@@ -193,7 +206,7 @@ function gen_EEG_chart() {
 
     EEGX = d3.scaleLinear()
         .domain(EEG_Domain)
-        .range([margin.left, width - margin.right]);
+        .range([margin.left, width]);
     EEGLine = d3.area()
         .x(function(d, i) { return EEGX(i); })
         .y0(function(d) {return -d / 12})
@@ -262,7 +275,7 @@ function drawImage(canvas) {
     }
 
     console.log(image);
-    context.putImageData(image, 25, 0);
+    context.putImageData(image, 20, 0);
 }
 
 function refresh_EEG_chart(data) {
@@ -307,10 +320,10 @@ function add_differential_shading() {
         .data(mismatches)
         .enter()
         .append('rect')
-        .attr('x', function(d) {return x(d)})
+        .attr('x', function(d) {return x(d['start'])})
         .attr('y', margin.top)
         .attr('class',function(d) {return 'shade_rect ' + d})
-        .attr('width', (30 * width / 24310))
+        .attr('width',function(d) {return  (d['width'] * width / 24310)})
         .attr('height', chartHeight - margin.top - margin.bottom)
         .style('fill', 'red');
 }
@@ -318,7 +331,7 @@ function add_differential_shading() {
 function add_confidence_shading() {
     var g = d3.select('#predictedChart > g');
     var confidenceScale = d3.scaleLinear()
-        .domain([.5,1])
+        .domain([.3,1])
         .range(['#ff0a0e','#50f442'])
     g.selectAll('.bar')
         .data(confidence_data)
@@ -334,20 +347,36 @@ function add_confidence_shading() {
 // function to calculate mismatched
 function calc_mismatches() {
     var mismatches = [];
-    var numMismatches = 0;
-    // find all mismatches
-    for (var i = 0; i < pred_labels.length; i++) {
-        if (pred_labels[i]['Label'] !== true_labels[i]['Label']) {
-            numMismatches += 1;
-            mismatches.push(pred_labels[i]['Time']);
+    var currentMismatch = false;
+    var consecutive = 0;
+    var start = 0;
+    for (var i = 0; i < raw_true_labels.length; i++) {
+        console.log(raw_true_labels[i]['Label']);
+        if ((raw_true_labels[i]['Label'] !== raw_pred_labels[i]['Label'])) {
+            // continue current mismatch
+            if (currentMismatch) {
+                consecutive += 1;
+            } else {
+                // start new mismatch
+                consecutive = 1;
+                start = raw_true_labels[i]['Time'];
+                currentMismatch = true;
+            }
+        } else {
+            if (currentMismatch) {
+                // there was a previous mismatch so we have to add to list
+                mismatches.push({
+                    'start' : start - 15,
+                    'width' : consecutive * 30
+                });
+                consecutive = 0;
+                start = 0;
+                currentMismatch = false;
+            }
         }
     }
-    // calculate unique
-    var unique_mismatches = [];
-    $.each(mismatches, function(i, el) {
-        if ($.inArray(el, unique_mismatches) === -1) unique_mismatches.push(el);
-    });
-    return unique_mismatches;
+    console.log(mismatches);
+    return mismatches;
 }
 
 function zoomed() {
