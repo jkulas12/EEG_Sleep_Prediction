@@ -26,7 +26,7 @@ var x;
 var y;
 var stairXScale;
 var stairYScale;
-
+var overviewSprectData;
 var xAxis, yAxis;
 var spectX;
 var spectXScale;
@@ -116,9 +116,10 @@ $(window).on("load", function() {
                 console.log(EEGList);
                 refresh_EEG_chart(EEGList,EEG_Domain[0], EEG_Domain[1]);
                 d3.csv('data/spect_data_1.csv', function(data) {
+                    overviewSprectData = data;
+                    dy = data.length;
                     spect_data = data;
-                    dy = spect_data.length;
-                    gen_spectrogram(spect_data);
+                    gen_spectrogram(overviewSprectData);
                     d3.csv('data/probabilities.csv', function(data) {
                         confidence_data = data;
                         add_confidence_shading(data)
@@ -409,6 +410,15 @@ function calc_mismatches() {
         }
     }
     return mismatches;
+}
+
+function resetZoom() {
+    spect_data = overviewSprectData;
+    drawImage();
+    $('#selectedRectTrueMarker').width(0)
+    EEG_Domain = [0, EEGList[0].length * 5];
+    refresh_EEG_chart(EEGList,EEG_Domain[0], EEG_Domain[1]);
+
 }
 
 function draw_trapezoid(start, stop) {
