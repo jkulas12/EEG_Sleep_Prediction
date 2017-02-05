@@ -11,12 +11,12 @@ def downsample_data(X, Y, factor, patientID):
     out_y = []
     min_x = [0,0,0,0,0,0]
     max_x = [0,0,0,0,0,0]
-
+    print(len(X))
     # downsampling
     # input data is 200 records per second
     for i in range(len(X)):
         # dump downsampled data
-        if i % 200 == 199:
+        if i % factor == factor - 1:
             out_x.append(min_x)
             out_x.append(max_x)
             min_x = [0,0,0,0,0,0]
@@ -84,10 +84,10 @@ EEG, sleep_stage, other_info = check_load_Yvonne_dataset(EEG_file_path, label_fi
 
 
 # print(other_info)
+#
+# load_export_spect_data(data_path + 'spect_file_1.mat')
 
-load_export_spect_data(data_path + 'spect_file_1.mat')
-
-# downsample_data(EEG, sleep_stage, 200, 1)
+downsample_data(EEG, sleep_stage, 2000, 1)
 # function to downsample input and labels by a certain factor
 
 

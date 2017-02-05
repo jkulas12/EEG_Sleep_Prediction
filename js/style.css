@@ -28,3 +28,13 @@ path {
     border: 1px solid black;
     float:right;
 }
+
+#selectedRectTrueMarker {
+    position : absolute;
+    z-index: -10;
+}
+
+.trapezoid {
+    position: absolute;
+    top: 100px;
+}

@@ -14,8 +14,9 @@ var color;
 var area;
 var EEG = {1:[], 2:[], 3:[], 4:[], 5:[], 6:[]};
 var EEGList = [];
-
-
+var zoom;
+var dy;
+var dx = 141;
 
 var EEGLine;
 var confidence_data;
@@ -27,21 +28,20 @@ var stairXScale;
 var stairYScale;
 
 var xAxis, yAxis;
-
+var spectX;
+var spectXScale;
 var EEG_Domain;
-
+var spectXAxis;
+var trap_points;
 var margin = {top: 10, right: 20, bottom:10, left: 10},
-    width = $(window).width() * .8 - margin.left - margin.right,
+    chartWidth = $(window).width() * .8 - margin.left - margin.right,
     chartHeight =  180 - margin.top - margin.bottom;
 
 var spect_data;
-var spect_colors = ["#a50026","#d73027","#f46d43","#fdae61","#fee08b","#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"];
 
-//var zoom = d3.zoom()
-//    .scaleExtent([1, Infinity])
-//    .translateExtent([[0,0], [width, chartHeight]])
-//    .extent([[0,0], [width, chartHeight]])
-//    .on('zoom', zoomed);
+var context = document.getElementById('testCanvas').getContext('2d');
+
+
 $(window).on("load", function() {
     var h = $(window).height();
     var w = $(window).width();
@@ -65,8 +65,7 @@ $(window).on("load", function() {
             }
             time += 30
         }
-        console.log('raw_pred_labels');
-        console.log(raw_pred_labels);
+
         data[data.length - 1]['Time'] = time;
         data[data.length - 1]['Label'] = +data[data.length - 1]['Label'];
         pred_labels.push(data[data.length - 1]);
@@ -90,8 +89,7 @@ $(window).on("load", function() {
                 }
                 time += 30
             }
-            console.log('raw_true_labels');
-            console.log(raw_true_labels);
+
             data[data.length - 1]['Time'] = time;
             data[data.length - 1]['Label'] = +data[data.length - 1]['Label']
             true_labels.push(data[data.length - 1]);
@@ -100,7 +98,7 @@ $(window).on("load", function() {
             add_differential_shading();
 
 
-            d3.csv('data/1_200_EEG.csv', function(data) {
+            d3.csv('data/1_2000_EEG.csv', function(data) {
                 data.forEach(function(d) {
                     EEG[1].push(+d[1]);
                     EEG[2].push(+d[2]);
@@ -112,14 +110,16 @@ $(window).on("load", function() {
                 for (var eeg in EEG) {
                     EEGList.push(EEG[eeg]);
                 }
-                EEG_Domain = [0, data.length];
+
+                EEG_Domain = [0, data.length * 5];
                 gen_EEG_chart();
-                refresh_EEG_chart(EEGList);
+                console.log(EEGList);
+                refresh_EEG_chart(EEGList,EEG_Domain[0], EEG_Domain[1]);
                 d3.csv('data/spect_data_1.csv', function(data) {
                     spect_data = data;
+                    dy = spect_data.length;
                     gen_spectrogram(spect_data);
                     d3.csv('data/probabilities.csv', function(data) {
-                        console.log(data);
                         confidence_data = data;
                         add_confidence_shading(data)
                     })
@@ -134,25 +134,34 @@ $(window).on("load", function() {
 
 
 function gen_scales() {
-    stairXScale = d3.scaleLinear().domain([-100,24260]).range([margin.left, width]);
+    stairXScale = d3.scaleLinear().domain([-100,24260]).range([margin.left, chartWidth]);
     stairYScale = d3.scaleLinear().domain([0,5]).range([chartHeight -margin.bottom, margin.top]);
-    x = d3.scaleLinear().domain([-100, 24210]).range([margin.left, width]);
+    x = d3.scaleLinear().domain([-100, 24210]).range([margin.left, chartWidth]);
     y = d3.scaleLinear().domain([5,0]).range([margin.top, chartHeight - margin.bottom]);
 
+    spectX = d3.scaleLinear().domain([-100, 24210]).range([margin.left, chartWidth]);
+    spectXScale = d3.scaleLinear().domain([-100,24260]).range([margin.left, chartWidth]);
     valueline = d3.line()
         .x(function(d) { return x(d.Time); })
         .y(function(d) { return y(d.Label); })
         .defined(function(d) {return d.Label !== -1});
 
+
     xAxis = d3.axisBottom(stairXScale)
         .tickValues([0, 7200, 14400, 21600])
         .tickFormat(function(d) {
-            return d / 3600;
+            return d;
         });
 
     yAxis = d3.axisLeft(stairYScale)
         .tickValues([1,2,3,4,5])
         .tickFormat(d3.format('.0f'));
+
+    spectXAxis = d3.axisBottom(spectXScale)
+        .ticks(4)
+        .tickFormat(function(d) {
+            return d / 2;
+        });
 }
 
 function gen_pred_chart() {
@@ -163,7 +172,7 @@ function gen_pred_chart() {
         .append("svg")
         .attr("class", "chart")
         .attr("id", "predictedChart")
-        .attr("width", width + margin.left + margin.right)
+        .attr("width", chartWidth + margin.left + margin.right)
         .attr("height", chartHeight + margin.top + margin.bottom)
         .append("g")
         .attr("transform",
@@ -185,7 +194,7 @@ function gen_true_chart() {
         .append("svg")
         .attr("class", "chart")
         .attr("id", "trueChart")
-        .attr("width", width + margin.left + margin.right)
+        .attr("width", chartWidth + margin.left + margin.right)
         .attr("height", chartHeight + margin.top + margin.bottom)
         .append("g")
         .attr("transform",
@@ -208,7 +217,7 @@ function gen_EEG_chart() {
 
     EEGX = d3.scaleLinear()
         .domain(EEG_Domain)
-        .range([margin.left, width]);
+        .range([margin.left, chartWidth + margin.right]);
     EEGLine = d3.area()
         .x(function(d, i) { return EEGX(i); })
         .y0(function(d) {return -d / 12})
@@ -216,71 +225,73 @@ function gen_EEG_chart() {
 
     var svg = d3.select('#EEGChartDiv').append('svg')
         .attr('class', 'EEGChart')
-        .attr("width", width + margin.left + margin.right)
+        .attr("width", chartWidth + margin.left + margin.right)
         .attr("height", chartHeight + margin.top + margin.bottom)
 
 
 }
 
 
-function gen_spectrogram(data) {
-
-    var svg = d3.select('#spectrogramDiv').append('svg')
-        .attr('class', 'spectrogramSVG')
-        .attr('width', width + margin.left + margin.right)
-        .attr('height', chartHeight + margin.top + margin.bottom);
-
+function gen_spectrogram() {
+    d3.select('#spectrogramDiv').append('svg')
+        .attr('width', chartWidth)
+        .attr('height', 20)
+        .append("svg:g")
+        .attr('class', 'spectrogramAxis')
+        .attr("transform", "translate(15,0)")
+        .call(spectXAxis);
 
 
     var svgCanvas = document.getElementsByClassName('spectrogramSVG')[0];
-    console.log(svgCanvas);
     var newNode = document.createElement('canvas');
     newNode.setAttribute('id', 'spectrogram');
-    svgCanvas.appendChild(newNode);
     d3.select('#spectrogram')
         .call(drawImage)
 }
 
 
-function drawImage(canvas) {
-    var dy = spect_data.length;
-    var dx = 141;
-    console.log(spect_data);
+function drawImage() {
+
+    context.clearRect(0,0,dy, dx);
+
+    dy = spect_data.length;
+    dx = 139;
     d3.select('#testCanvas')
         .attr('width', dx)
-        .attr('height', chartHeight)
-        .attr('width', width + 25 + 'px')
-        .attr('height', chartHeight + 'px');
+        .attr('height', 139)
+        .attr('width', chartWidth + 25 + 'px')
+        .attr('height', 140 + 'px');
 
-    var context = document.getElementById('testCanvas').getContext('2d'),
-        image = context.createImageData(dy, dx);
+    var image = context.createImageData(dy, dx);
     var spectColor =  d3.scaleLinear()
-        .domain([0,.2,.4,.6,1,2])
-        .range(["##0543a8", "#16e9f4", "#46e038", "#f6ff00", "#ff8c00", "#ff0000"])
+        .domain([-15,-2,-.2,.2,2,15])
+        .range(["#0543a8", "#16e9f4", "#46e038", "#f6ff00", "#ff8c00", "#ff0000"])
 
     // format data for image
     for (var x = dx - 1, p = -1; x > -1; --x) {
-        for (var y = dy - 1; y > -1; --y) {
-            var c = d3.rgb(spectColor(+spect_data[y][x]));
-            //if ((x + y) % 100 === 0) {
-            //    console.log(spect_data[y][x]);
-            //    console.log(x);
-            //    console.log(y);
-            //    console.log(c)
-            //    console.log('---------------');
-            //}
+        for (var y = 0; y < dy; ++y) {
+            var c = d3.rgb(spectColor(Math.log(+spect_data[y][x])));
             image.data[++p] = c.r;
             image.data[++p] = c.g;
             image.data[++p] = c.b;
             image.data[++p] = 255;
         }
     }
-
-    console.log(image);
     context.putImageData(image, 20, 0);
+    context.scale(chartWidth / spect_data.length, 1)
+    context.drawImage($('#testCanvas')[0],0,0)
+
 }
 
-function refresh_EEG_chart(data) {
+function refresh_EEG_chart(data, start, end) {
+    d3.selectAll('.EEGChart > path').remove();
+
+    EEGX.domain([0, data[0].length]);
+    spectXScale.domain([start * 2, end * 2]);
+
+    d3.select('.spectrogramAxis')
+        //.attr("transform", "translate(0,"")")
+        .call(spectXAxis);
 
     d3.select('.EEGChart').selectAll('path')
         .data(data)
@@ -288,6 +299,9 @@ function refresh_EEG_chart(data) {
         .attr('transform', function(d,i) {return "translate(" + margin.left + "," + EEGY(i) + ")";})
         .style('fill', function(d, i) {return color(i); })
         .attr('d', EEGLine)
+    console.log(start);
+    console.log(end);
+    draw_trapezoid(start, end);
 
 }
 
@@ -325,9 +339,27 @@ function add_differential_shading() {
         .attr('x', function(d) {return x(d['start'])})
         .attr('y', margin.top)
         .attr('class',function(d) {return 'shade_rect ' + d})
-        .attr('width',function(d) {return  (d['width'] * width / 24310)})
+        .attr('width',function(d) {
+            return  (d['width'] * chartWidth / 24310)})
         .attr('height', chartHeight - margin.top - margin.bottom)
-        .style('fill', 'red');
+        .style('fill', 'red')
+        .on('click', function(d) {
+            var start = d['start'];
+            var width = d['width'];
+            d3.json('data/mismatches/mismatch_' + (start + 45) + '.json', function(d)  {
+                var EEG_data = d['EEG_data'];
+                //var spect_data = d['']
+                refresh_EEG_chart(EEG_data, start, start + width);
+                spect_data = d['sprect_data'];
+                drawImage();
+                var topPos = 2 * margin.top + 3 * chartHeight + 2 * margin.bottom;
+                $('#selectedRectTrueMarker').width(chartWidth * (width) / 24310);
+                $('#selectedRectTrueMarker').height(chartHeight + 2 * margin.bottom + margin.top)
+                $('#selectedRectTrueMarker').css({top : topPos, left: x(start) +margin.left});
+                $('#selectedRectTrueMarker').css({background : 'gray', opacity : .4});
+            })
+
+        });
 }
 
 function add_confidence_shading() {
@@ -353,7 +385,6 @@ function calc_mismatches() {
     var consecutive = 0;
     var start = 0;
     for (var i = 0; i < raw_true_labels.length; i++) {
-        console.log(raw_true_labels[i]['Label']);
         if ((raw_true_labels[i]['Label'] !== raw_pred_labels[i]['Label'])) {
             // continue current mismatch
             if (currentMismatch) {
@@ -377,12 +408,40 @@ function calc_mismatches() {
             }
         }
     }
-    console.log(mismatches);
     return mismatches;
 }
 
-function zoomed() {
-    if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush") return
-    var t = d3.event.transform;
-    x.domain(t.rescaleX())
+function draw_trapezoid(start, stop) {
+    $('.trapezoid').remove();
+
+
+    var svg = d3.select('#spectrogramDiv')
+        .append('svg')
+        .attr('class', 'trapezoid')
+        .attr('width', chartWidth)
+        .attr('height', 54);
+
+    $('.trapezoid').css({'top' : 2 * chartHeight, left : 2 * margin.left, 'z-index' : -20, 'opacity':.4})
+    var trap_line = d3.line()
+        .x(function(d) {
+            return d.x;
+        })
+        .y(function(d) {
+            return d.y;
+        });
+
+    var start_pos = start * chartWidth / 24310;
+    var end_pos = stop * chartWidth / 24310;
+     trap_points = [{
+        x: -10, y: 0
+    },{
+        x: chartWidth + 10, y: 0
+    },{
+        x: end_pos, y: 54
+    },{
+        x:start_pos, y: 54
+    }];
+    svg.append('path')
+        .attr("d", trap_line(trap_points) + 'Z')
+        .style("fill", "gray");
 }
