@@ -1,6 +1,6 @@
 .chartDiv {
     border: 1px solid black;
-    width: 80%;
+    width: 70%;
     float: left;
 }
 
@@ -8,7 +8,7 @@
     width:60px;
     height:60px;
     border: 1px solid black;
-    left:80%
+    left:70%
 }
 
 .line > path {
@@ -37,4 +37,64 @@ path {
 .trapezoid {
     position: absolute;
     top: 100px;
+}
+#EEGInfoDiv {
+    position: absolute;
+    padding-top: 10px;
+}
+.textDiv {
+    height:28px;
+}
+#patientInfoDiv {
+    position: absolute;
+    border: 1px solid black;
+}
+.sleepStageHeaderNum:first-of-type {
+    margin-left: 3px;
+}
+.sleepStageHeaderNum{
+    width:40px;
+    text-align: center;
+}
+.sleepStageHeaderText {
+    margin-right:10px;
+}
+.sleepStageMinsTitle {
+    margin-right:38px;
+}
+
+
+.sleepStageHeader {
+    display: flex;
+}
+.sleepStageMins {
+    display: flex;
+}
+
+.sleepMinSpan {
+    width:40px;
+    text-align: center;
+}
+
+.sleepStagePcts {
+    display: flex;
+}
+
+.sleepStagePctHeader {
+    margin-right: 42px;
+}
+
+.sleepPctSpan {
+    width : 40px
+}
+
+#sleepStageDiv {
+    border: 1px solid black;
+}
+.sleepStageHeader {
+    border: 1px solid black;
+}
+
+.avgStatsRow {
+    text-align: center;
 }

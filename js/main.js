@@ -34,9 +34,9 @@ var EEG_Domain;
 var spectXAxis;
 var trap_points;
 var margin = {top: 10, right: 20, bottom:10, left: 10},
-    chartWidth = $(window).width() * .8 - margin.left - margin.right,
+    chartWidth = $(window).width() * .7 - margin.left - margin.right,
     chartHeight =  180 - margin.top - margin.bottom;
-
+var EEG_Channels = ['F3M2','F4M1','C3M2','C4M1','O1M2','O2M1'];
 var spect_data;
 
 var context = document.getElementById('testCanvas').getContext('2d');
@@ -46,9 +46,14 @@ $(window).on("load", function() {
     var h = $(window).height();
     var w = $(window).width();
     gen_scales();
-    $('.chartDiv').height(180).width(.8 * w);
+    $('.chartDiv').height(180).width(.7 * w);
 
-    d3.csv('data/1_PredLabels_1_23.csv', function(data) {
+    $('#EEGInfoDiv').height(180).width(.15 * w).css({'left' :.71 * w})
+    $('#EEGChartDiv').height(180).width(.97 * w);
+    $('#patientInfoDiv').height(210).width(.28 * w).css({'left' :.71 * w})
+
+
+    d3.csv('data/processed/1/1_PredLabels_1_23.csv', function(data) {
         var time = 0;
         pred_labels = [];
         raw_pred_labels = [];
@@ -71,7 +76,7 @@ $(window).on("load", function() {
         pred_labels.push(data[data.length - 1]);
         gen_pred_chart();
         refresh_pred_chart(pred_labels);
-        d3.csv('data/1_200_sleepStates.csv', function(data) {
+        d3.csv('data/processed/1/1_200_sleepStates.csv', function(data) {
             var time = 0;
             true_labels = [];
             raw_true_labels = [];
@@ -98,7 +103,7 @@ $(window).on("load", function() {
             add_differential_shading();
 
 
-            d3.csv('data/1_2000_EEG.csv', function(data) {
+            d3.csv('data/processed/1/1_2000_EEG.csv', function(data) {
                 data.forEach(function(d) {
                     EEG[1].push(+d[1]);
                     EEG[2].push(+d[2]);
@@ -115,14 +120,15 @@ $(window).on("load", function() {
                 gen_EEG_chart();
                 console.log(EEGList);
                 refresh_EEG_chart(EEGList,EEG_Domain[0], EEG_Domain[1]);
-                d3.csv('data/spect_data_1.csv', function(data) {
+                d3.csv('data/processed/1/spect_data_1.csv', function(data) {
                     overviewSprectData = data;
                     dy = data.length;
                     spect_data = data;
                     gen_spectrogram(overviewSprectData);
-                    d3.csv('data/probabilities.csv', function(data) {
+                    d3.csv('data/processed/1/probabilities.csv', function(data) {
                         confidence_data = data;
                         add_confidence_shading(data)
+                        gen_stats_panel();
                     })
 
                 })
@@ -133,6 +139,121 @@ $(window).on("load", function() {
     });
 });
 
+
+function gen_stats_panel() {
+    var stat_data;
+    var stat_map = {}
+    // TODO: quite a mess
+    d3.text('data/input/sleep_stats.txt', function(data) {
+        stat_data = data.split('\n');
+        stat_data = stat_data.map(function(d) {
+            var split_obj = d.split(':');
+            split_obj[1] = split_obj[1].replace('[','').replace(']','');
+
+            split_obj[1] = split_obj[1].split(',').map(function(e) {
+                return +e;
+            })
+            stat_map[split_obj[0]] = split_obj[1]
+        });
+        console.log(stat_map);
+        // Add EEG_Channel labels
+        d3.select('#EEGInfoDiv').selectAll('.textDiv')
+            .data(EEG_Channels)
+            .enter().append('div')
+            .attr('class', 'textDiv')
+            .style('y', function(d,i) {return 10 + i * 30})
+            .text(function(d) {return d});
+
+        // add aggreagate statistics
+        var sleepStageHeader = d3.select('#sleepStageDiv')
+            .append('div')
+            .attr('class', 'sleepStageHeader');
+
+        sleepStageHeader.append('div')
+            .attr('class', 'sleepStageHeaderText')
+            .text('Sleep Stage');
+        sleepStageHeader.append('div')
+            .attr('class', 'sleepStageHeaderNum')
+            .text('1');
+        sleepStageHeader.append('div')
+            .attr('class', 'sleepStageHeaderNum')
+            .text('2');
+        sleepStageHeader.append('div')
+            .attr('class', 'sleepStageHeaderNum')
+            .text('3');
+        sleepStageHeader.append('div')
+            .attr('class', 'sleepStageHeaderNum')
+            .text('4');
+        sleepStageHeader.append('div')
+            .attr('class', 'sleepStageHeaderNum')
+            .text('5');
+
+        var mins = stat_map['mins_in_each_stage'];
+        var sleepMins = d3.select('#sleepStageDiv')
+            .append('div')
+            .attr('class', 'sleepStageMins');
+
+        sleepMins.append('div')
+            .text('Minutes')
+            .attr('class', 'sleepStageMinsTitle');
+        sleepMins.selectAll('sleepMinSpan')
+            .data(mins).enter()
+            .append('div')
+            .attr('class', 'sleepMinSpan')
+            .text(function(d) {return d});
+
+        var avgStatsDiv = d3.select('#aggregateStatsDiv');
+
+        var total_mins = stat_map['total_mins'][0];
+
+        avgStatsDiv.append('div')
+            .text('Total Minutes of Sleep:    ' + total_mins)
+            .attr('class', 'avgStatsRow totSleepMins')
+
+        var sleep_efficiency = stat_map['sleep_efficiency'][0];
+        avgStatsDiv.append('div')
+            .text('Sleep Efficiency(%):    ' + Math.round(sleep_efficiency * 10000) / 100)
+            .attr('class', 'avgStatsRow');
+
+        var sleep_to_wake = stat_map['number_of_sleep_to_wake_transitions'][0];
+        avgStatsDiv.append('div')
+            .text('Sleep to Wake Transitions: ' + sleep_to_wake)
+            .attr('class', 'avgStatsRow');
+
+        var sleep_to_wake_per_hr = stat_map['number_of_sleep_to_wake_transitions_per_hour'][0];
+        avgStatsDiv.append('div')
+            .text(function (d) {return 'Sleep to Wake Transitions per hr.:  ' + Math.round(sleep_to_wake_per_hr * 10) / 10})
+            .attr('class', 'avgStatsRow');
+
+        var sleep_to_sleep = stat_map['number_of_sleep_to_sleep_transitions'][0];
+        avgStatsDiv.append('div')
+            .text('Sleep to Sleep Transitions: ' + sleep_to_sleep)
+            .attr('class', 'avgStatsRow');
+
+        var sleep_to_sleep_per_hr = stat_map['number_of_sleep_to_sleep_transitions_per_hour'][0];
+        avgStatsDiv.append('div')
+            .text(function(d) {return 'Sleep to Sleep Transitions per hr.: ' + Math.round(sleep_to_sleep_per_hr * 10) / 10})
+            .attr('class', 'avgStatsRow');
+
+
+        // percentages
+        var pcts = stat_map['pecentage_of_min_in_each_stage'];
+        var sleepMinPct = d3.select('#sleepStageDiv')
+            .append('div')
+            .attr('class', 'sleepStagePcts');
+        sleepMinPct.append('div')
+            .text('%/Stage')
+            .attr('class', 'sleepStagePctHeader');
+
+        sleepMinPct.selectAll('sleepPctSpan')
+            .data(pcts).enter()
+            .append('div')
+            .attr('class', 'sleepPctSpan')
+            .text(function(d) {return Math.round(d * 10000) / 100});
+    })
+
+
+}
 
 function gen_scales() {
     stairXScale = d3.scaleLinear().domain([-100,24260]).range([margin.left, chartWidth]);
@@ -151,17 +272,35 @@ function gen_scales() {
     xAxis = d3.axisBottom(stairXScale)
         .tickValues([0, 7200, 14400, 21600])
         .tickFormat(function(d) {
-            return d;
+            var hours = String(Math.floor(d / 3600));
+            if (hours.length < 2) {hours = '0' + String(hours)}
+            var hour_remainder = d - (3600 * hours);
+            var minutes = String(Math.floor(hour_remainder / 60));
+            if (minutes.length < 2) {minutes = '0' + String(minutes)}
+            var minute_remainder = hour_remainder - (60 * minutes);
+            var seconds = String(minute_remainder);
+            if (seconds.length < 2) {seconds = '0' + String(seconds)}
+            return hours + ':' + minutes + ":" + seconds;
         });
 
     yAxis = d3.axisLeft(stairYScale)
-        .tickValues([1,2,3,4,5])
+        .ticks(4)
         .tickFormat(d3.format('.0f'));
 
     spectXAxis = d3.axisBottom(spectXScale)
         .ticks(4)
         .tickFormat(function(d) {
-            return d / 2;
+            d = d / 2;
+            var hours = String(Math.floor(d / 3600));
+            if (hours.length < 2) {hours = '0' + String(hours)}
+            var hour_remainder = d - (3600 * hours);
+            var minutes = String(Math.floor(hour_remainder / 60));
+            if (minutes.length < 2) {minutes = '0' + String(minutes)}
+            var minute_remainder = hour_remainder - (60 * minutes);
+            var seconds = String(minute_remainder);
+            if (seconds.length < 2) {seconds = '0' + String(seconds)}
+            return String(hours) + ':' + String(minutes) + ":" + String(seconds);
+            //return d / 2;
         });
 }
 
@@ -265,7 +404,7 @@ function drawImage() {
 
     var image = context.createImageData(dy, dx);
     var spectColor =  d3.scaleLinear()
-        .domain([-15,-2,-.2,.2,2,15])
+        .domain([-6, -3.6, -1.2, 1.2, 3.6, 6])
         .range(["#0543a8", "#16e9f4", "#46e038", "#f6ff00", "#ff8c00", "#ff0000"])
 
     // format data for image
@@ -298,10 +437,8 @@ function refresh_EEG_chart(data, start, end) {
         .data(data)
         .enter().append('path')
         .attr('transform', function(d,i) {return "translate(" + margin.left + "," + EEGY(i) + ")";})
-        .style('fill', function(d, i) {return color(i); })
+        .style('fill', 'black' )
         .attr('d', EEGLine)
-    console.log(start);
-    console.log(end);
     draw_trapezoid(start, end);
 
 }
@@ -347,10 +484,10 @@ function add_differential_shading() {
         .on('click', function(d) {
             var start = d['start'];
             var width = d['width'];
-            d3.json('data/mismatches/mismatch_' + (start + 45) + '.json', function(d)  {
+            d3.json('data/processed/1/mismatches/mismatch_' + (start + 45) + '.json', function(d)  {
                 var EEG_data = d['EEG_data'];
                 //var spect_data = d['']
-                refresh_EEG_chart(EEG_data, start, start + width);
+                refresh_EEG_chart(EEG_data, start, start + 30);
                 spect_data = d['sprect_data'];
                 drawImage();
                 var topPos = 2 * margin.top + 3 * chartHeight + 2 * margin.bottom;

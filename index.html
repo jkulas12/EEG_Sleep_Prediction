@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="js/Vendor/jquery-ui/jquery-ui.min.css">
 <link rel="stylesheet" href="js/style.css">
 <script src="js/Vendor/d3.v4.0.0-rc.1.min.js" charset="utf-8" type="text/javascript"></script>
-
+<script src="https://d3js.org/d3-dsv.v1.min.js"></script>
 
 <head>
     <meta charset="UTF-8">
@@ -17,7 +17,9 @@
 
 <body>
     <div id = 'chartDiv'>
-        <div id = 'EEGChartDiv' class = 'chartDiv'></div>
+        <div id = 'EEGChartDiv'>
+            <div id = 'EEGInfoDiv'></div>
+        </div>
         <div id = 'spectrogramDiv' class = 'chartDiv'>
             <canvas id = 'testCanvas'></canvas>
         </div>
@@ -28,9 +30,14 @@
             <div id = 'selectedRectPredMarker'></div>
         </div>
     </div>
-    <div id = 'resetButtonDiv'>
-        <button id = 'resetButton' onclick="resetZoom()">Reset</button>
+    <div id = 'patientInfoDiv'>
+        <div id = 'sleepStageDiv'></div>
+        <div id = 'aggregateStatsDiv'></div>
+        <div id = 'resetButtonDiv'>
+            <button id = 'resetButton' style="width: 100%" onclick="resetZoom()">Reset Zoom</button>
+        </div>
     </div>
+
     <footer>
         <script src = 'js/main.js'></script>
     </footer>
