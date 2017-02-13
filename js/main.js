@@ -59,8 +59,8 @@ $(window).on("load", function() {
     $('#patientInfoDiv').height(210).width(.28 * w).css({'left' :.71 * w});
     patientID = getParameterByName('patientID');
     if (patientID == null) {
-        alert('Provide patientID... defaulting to patient 1');
-        patientID = 1;
+        alert('Provide patientID... defaulting to patient 0');
+        patientID = 0;
     }
     data_directory = 'data/patient' + patientID + '/processed/';
     input_data_directory = 'data/patient' + patientID + '/input/';
