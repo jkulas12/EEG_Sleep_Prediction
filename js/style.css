@@ -98,3 +98,12 @@ path {
 .avgStatsRow {
     text-align: center;
 }
+
+.EEGChart > path {
+    fill:none;
+    stroke:black;
+    stroke-width: 1px;
+}
+#spectCanvas {
+    margin-left:20px
+}

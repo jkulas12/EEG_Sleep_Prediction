@@ -1,0 +1,9 @@
+mins_in_each_stage:[108.5, 164.0, 40.5, 46.5, 39.0]
+pecentage_of_min_in_each_stage:[0.2722710163111669, 0.411543287327478, 0.10163111668757842, 0.11668757841907151, 0.09786700125470514]
+total_mins:[398.5]
+sleep_efficiency:[0.9021329987452948]
+number_of_sleep_to_wake_transitions:[29]
+number_of_sleep_to_wake_transitions_per_hour:[4.840055632823366]
+number_of_sleep_to_sleep_transitions:[81]
+number_of_sleep_to_sleep_transitions_per_hour:[13.518776077885954]
+start_time:21.57.40
